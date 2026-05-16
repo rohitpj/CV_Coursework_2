@@ -8,19 +8,13 @@ from evaluate import run_evaluation
 _REPO = Path(__file__).resolve().parent
 DATASET_URL     = "http://efrosgans.eecs.berkeley.edu/cyclegan/datasets/apple2orange.zip"
 DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
-CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "task2_results.csv")
 
 SEED           = 42
 N_EPOCHS       = 50
 N_EPOCHS_DECAY = 50
-
-# (name, lr)
-CONFIGS = [
-    ("task2_lr0001",  "0.0001"),
-    ("task2_default", "0.0002"),
-    ("task2_lr0004",  "0.0004"),
-]
+NAME           = "task2_default"
+LR             = "0.0002"
 
 
 def download_dataset():
@@ -55,17 +49,17 @@ def download_dataset():
     print("Dataset ready.")
 
 
-def evaluate(name):
+def evaluate():
     try:
-        run_evaluation(name, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
+        run_evaluation(NAME, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
     except Exception as e:
-        print(f"WARNING: evaluation failed for {name}: {e}")
+        print(f"WARNING: evaluation failed: {e}")
 
 
-def train(name, lr):
+def train():
     args = [
         "--dataroot",        DATASET_DIR,
-        "--name",            name,
+        "--name",            NAME,
         "--model",           "cycle_gan",
         "--dataset_mode",    "unaligned",
         "--netG",            "resnet_9blocks",
@@ -75,7 +69,7 @@ def train(name, lr):
         "--norm",            "instance",
         "--no_dropout",
         "--gan_mode",        "lsgan",
-        "--lr",              lr,
+        "--lr",              LR,
         "--beta1",           "0.5",
         "--pool_size",       "50",
         "--n_epochs",        str(N_EPOCHS),
@@ -91,12 +85,11 @@ def train(name, lr):
         "--no_html",
     ]
 
-    print(f"\nTraining: {name} | lr={lr}, epochs={N_EPOCHS}+{N_EPOCHS_DECAY}")
+    print(f"\nTraining: {NAME} | lr={LR}, epochs={N_EPOCHS}+{N_EPOCHS_DECAY}")
     run_training(args)
-    evaluate(name)
+    evaluate()
 
 
 if __name__ == "__main__":
     download_dataset()
-    for name, lr in CONFIGS:
-        train(name, lr)
+    train()

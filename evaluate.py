@@ -16,7 +16,7 @@ from models import create_model
 # Configuration — override via CLI args or change defaults here
 # =============================================================================
 #EXPERIMENT_NAME  = "apple2orange_cyclegan_default"
-EXPERIMENT_NAME  = "task2_lr0004"
+EXPERIMENT_NAME  = "task2_lr0002"
 DATAROOT         = "./datasets/apple2orange"
 EPOCH            = "latest"
 CHECKPOINTS_DIR  = "./checkpoints"
