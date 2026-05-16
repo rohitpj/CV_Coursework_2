@@ -3,14 +3,18 @@ import re
 import subprocess
 from pathlib import Path
 
-DATASET_DIR = "./datasets/apple2orange"
+DATASET_DIR     = "./datasets/apple2orange"
 CHECKPOINTS_DIR = "./checkpoints"
+RESULTS_CSV     = "./evaluation/et4_results.csv"
+
+SEED        = 42
+KEEP_EPOCHS = {20, 40, 60, 80, 100}
 
 # apple2orange has ~995 trainA and ~1019 trainB images
 # max_dataset_size limits how many are loaded from each directory
-FULL = 10000   # larger than the dataset so all images are used
-HALF = 497     # ~50% of 995
-QUARTER = 248  # ~25% of 995
+FULL    = 10000   # larger than the dataset so all images are used
+HALF    = 497     # ~50% of 995
+QUARTER = 248     # ~25% of 995
 
 # (name, max_dataset_size, n_epochs, n_epochs_decay, lr)
 #
@@ -34,13 +38,38 @@ CONFIGS = [
 
 def cleanup_checkpoints(name):
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
+    if not checkpoint_dir.exists():
+        return
+    removed = 0
     for f in checkpoint_dir.glob("*_net_*.pth"):
-        if re.match(r"^\d+_net_", f.name):
+        m = re.match(r"^(\d+)_net_", f.name)
+        if m and int(m.group(1)) not in KEEP_EPOCHS:
             f.unlink()
-    print(f"  Removed epoch checkpoints, kept latest_net_*.pth.")
+            removed += 1
+    print(f"  Kept epoch checkpoints {sorted(KEEP_EPOCHS)}, removed {removed} intermediate .pth files.")
+
+
+def evaluate(name):
+    cmd = [
+        sys.executable, "evaluate.py",
+        "--name",       name,
+        "--dataroot",   DATASET_DIR,
+        "--netG",       "resnet_9blocks",
+        "--ngf",        "64",
+        "--output_csv", RESULTS_CSV,
+    ]
+    print(f"  Evaluating {name}...")
+    result = subprocess.run(cmd, cwd=Path(__file__).parent, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  WARNING: evaluate.py failed for {name}:\n{result.stderr[-800:]}")
+    else:
+        for line in result.stdout.splitlines():
+            if any(k in line for k in ("FID", "KID", "LPIPS", "SSIM", "Appended", "Results")):
+                print(f"  {line.strip()}")
 
 
 def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
+    pct = {FULL: "100%", HALF: "50%", QUARTER: "25%"}.get(max_dataset_size, str(max_dataset_size))
     cmd = [
         sys.executable, "train.py",
         "--dataroot",          DATASET_DIR,
@@ -66,14 +95,20 @@ def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
         "--lambda_B",          "10.0",
         "--lambda_identity",   "0.5",
         "--max_dataset_size",  str(max_dataset_size),
-        "--save_epoch_freq",   "20",
+        "--save_epoch_freq",   "5",
+        "--seed",              str(SEED),
         "--no_html",
     ]
 
-    pct = "100%" if max_dataset_size == FULL else ("50%" if max_dataset_size == HALF else "25%")
-    print(f"\nTraining: {name}  (data={pct}, epochs={n_epochs}+{n_epochs_decay}, lr={lr})")
+    print(
+        f"\n{'='*70}\n"
+        f"Training : {name}\n"
+        f"  data={pct}, epochs={n_epochs}+{n_epochs_decay}, lr={lr}, seed={SEED}\n"
+        f"{'='*70}"
+    )
     subprocess.run(cmd, cwd=Path(__file__).parent)
     cleanup_checkpoints(name)
+    evaluate(name)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,8 @@ from models import create_model
 # =============================================================================
 # Configuration — override via CLI args or change defaults here
 # =============================================================================
-EXPERIMENT_NAME  = "et2_resnet9"
+#EXPERIMENT_NAME  = "apple2orange_cyclegan_default"
+EXPERIMENT_NAME  = "task2_lr0004"
 DATAROOT         = "./datasets/apple2orange"
 EPOCH            = "latest"
 CHECKPOINTS_DIR  = "./checkpoints"
@@ -219,8 +220,6 @@ def run_evaluation(name, epoch, netG, ngf, norm, dataroot, output_csv=None):
             save_image(to_01(fake_A), samples_dir / f"sample_{i:03d}_fakeA.png")
             save_image(to_01(rec_B),  samples_dir / f"sample_{i:03d}_recB.png")
 
-        if (i + 1) % 50 == 0:
-            print(f"  {i + 1}/{n_images} images done")
 
     fid_ab         = fid_AtoB.compute().item()
     fid_ba         = fid_BtoA.compute().item()
