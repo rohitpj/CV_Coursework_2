@@ -591,79 +591,60 @@ class PixelDiscriminator(nn.Module):
 
 
 class VGGPerceptualLoss(nn.Module):
-    """ET1: Perceptual loss using frozen VGG16 feature maps.
+    """ET1: Perceptual loss using frozen VGG16 features.
 
-    Computes the L1 distance between VGG16 intermediate features of the
-    predicted and target images.  The VGG network is kept frozen throughout
-    training -- it acts purely as a fixed feature extractor.
+    Computes L1 distance between VGG16 feature maps of the predicted and
+    target images.  VGG is frozen and only used as a feature extractor.
 
-    Motivation: pixel-wise L1 cycle loss penalises every pixel equally, which
-    pushes the generator towards a blurry average.  VGG features capture
-    perceptual structure (edges, textures, semantics), so matching them
-    produces outputs that look sharper and more realistic to human observers.
-
-    VGG16 extraction points (indices into vgg.features):
-      relu1_2 : features[0:4]   -- low-level edges and colour blobs
-      relu2_2 : features[4:9]   -- fine textures
-      relu3_3 : features[9:16]  -- mid-level patterns
-      relu4_3 : features[16:23] -- high-level semantic content
-
-    Args:
-        layers (str): which feature levels contribute to the loss.
-            'shallow' -- relu1_2 and relu2_2 only (preserves texture)
-            'deep'    -- relu3_3 and relu4_3 only (preserves semantics)
-            'all'     -- all four levels (default)
+    layers='shallow' uses relu1_2 and relu2_2 (low-level texture).
+    layers='deep'    uses relu3_3 and relu4_3 (high-level semantics).
+    layers='all'     uses all four (default).
     """
-
-    # Consecutive slices of vgg.features; each slice ends at one relu
-    _SLICES = [(0, 4), (4, 9), (9, 16), (16, 23)]
-    _ACTIVE_SETS = {
-        "shallow": {0, 1},
-        "deep":    {2, 3},
-        "all":     {0, 1, 2, 3},
-    }
 
     def __init__(self, layers="all"):
         super().__init__()
-        if layers not in self._ACTIVE_SETS:
-            raise ValueError(f"layers must be one of {list(self._ACTIVE_SETS)}, got '{layers}'")
-        self.active = self._ACTIVE_SETS[layers]
+        self.layers = layers
 
         vgg = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.DEFAULT)
-        # Build one sequential block per extraction point (consecutive slices)
-        self.blocks = nn.ModuleList([
-            nn.Sequential(*list(vgg.features[s:e]))
-            for s, e in self._SLICES
-        ])
-        # Freeze all VGG parameters -- only used as a feature extractor
-        for p in self.parameters():
-            p.requires_grad = False
+        self.block1 = nn.Sequential(*list(vgg.features[0:4]))    # relu1_2
+        self.block2 = nn.Sequential(*list(vgg.features[4:9]))    # relu2_2
+        self.block3 = nn.Sequential(*list(vgg.features[9:16]))   # relu3_3
+        self.block4 = nn.Sequential(*list(vgg.features[16:23]))  # relu4_3
 
-        # VGG16 was trained on ImageNet; register normalisation constants as buffers
-        # so they move to the correct device automatically
-        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-        self.register_buffer("std",  torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        for param in self.parameters():
+            param.requires_grad = False
 
-    def _normalise(self, x):
-        # CycleGAN tensors are in [-1, 1] (tanh output); convert to ImageNet range
-        x = (x.clamp(-1.0, 1.0) + 1.0) / 2.0
-        return (x - self.mean) / self.std
+        # ImageNet normalisation constants (VGG was trained on these)
+        self.mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+        self.std  = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
     def forward(self, pred, target):
-        """Return the summed L1 perceptual distance at active VGG layers.
+        # convert from [-1, 1] (model range) to ImageNet-normalised [0, 1]
+        pred   = (pred.clamp(-1, 1) + 1) / 2
+        target = (target.detach().clamp(-1, 1) + 1) / 2
+        pred   = (pred   - self.mean.to(pred.device))   / self.std.to(pred.device)
+        target = (target - self.mean.to(target.device)) / self.std.to(target.device)
 
-        Args:
-            pred   : generator output, shape (B, 3, H, W), range [-1, 1]
-            target : ground-truth image, same shape and range
-        """
-        feat_p = self._normalise(pred)
-        # Detach target so we do not build an unnecessary gradient graph for it
-        feat_t = self._normalise(target.detach())
+        loss = 0.0
 
-        loss = torch.tensor(0.0, device=pred.device, dtype=pred.dtype)
-        for i, block in enumerate(self.blocks):
-            feat_p = block(feat_p)
-            feat_t = block(feat_t)
-            if i in self.active:
-                loss = loss + F.l1_loss(feat_p, feat_t)
+        pred   = self.block1(pred)
+        target = self.block1(target)
+        if self.layers in ["shallow", "all"]:
+            loss += F.l1_loss(pred, target)
+
+        pred   = self.block2(pred)
+        target = self.block2(target)
+        if self.layers in ["shallow", "all"]:
+            loss += F.l1_loss(pred, target)
+
+        pred   = self.block3(pred)
+        target = self.block3(target)
+        if self.layers in ["deep", "all"]:
+            loss += F.l1_loss(pred, target)
+
+        pred   = self.block4(pred)
+        target = self.block4(target)
+        if self.layers in ["deep", "all"]:
+            loss += F.l1_loss(pred, target)
+
         return loss

@@ -70,7 +70,7 @@ class CycleGANModel(BaseModel):
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
         self.loss_names = ["D_A", "G_A", "cycle_A", "idt_A", "D_B", "G_B", "cycle_B", "idt_B"]
         # ET1: register perceptual loss terms only when the loss is active
-        if self.isTrain and getattr(opt, "lambda_perceptual", 0.0) > 0.0:
+        if self.isTrain and opt.lambda_perceptual > 0.0:
             self.loss_names += ["cycle_A_perceptual", "cycle_B_perceptual"]
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ["real_A", "fake_B", "rec_A"]
@@ -106,7 +106,7 @@ class CycleGANModel(BaseModel):
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
             # ET1: VGG perceptual loss (only instantiated when lambda_perceptual > 0)
-            if getattr(opt, "lambda_perceptual", 0.0) > 0.0:
+            if opt.lambda_perceptual > 0.0:
                 self.criterionPerceptual = networks.VGGPerceptualLoss(
                     layers=opt.perceptual_layers
                 ).to(self.device)
@@ -190,11 +190,8 @@ class CycleGANModel(BaseModel):
         # GAN loss D_B(G_B(B))
         self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
 
-        # ET1: pixel-wise L1 cycle loss (can be disabled when using pure perceptual mode)
-        lambda_perceptual = getattr(self.opt, "lambda_perceptual", 0.0)
-        no_cycle_l1 = getattr(self.opt, "no_cycle_l1", False)
-        if no_cycle_l1 and lambda_perceptual > 0.0:
-            # Replace L1 with perceptual loss entirely
+        # ET1: cycle loss -- either pixel L1 or replaced by perceptual loss
+        if self.opt.no_cycle_l1 and self.opt.lambda_perceptual > 0.0:
             self.loss_cycle_A = 0
             self.loss_cycle_B = 0
         else:
@@ -203,14 +200,10 @@ class CycleGANModel(BaseModel):
             # Backward cycle loss || G_A(G_B(B)) - B||
             self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
-        # ET1: VGG perceptual cycle loss (added to or replacing L1, depending on --no_cycle_l1)
-        if lambda_perceptual > 0.0:
-            self.loss_cycle_A_perceptual = (
-                self.criterionPerceptual(self.rec_A, self.real_A) * lambda_perceptual
-            )
-            self.loss_cycle_B_perceptual = (
-                self.criterionPerceptual(self.rec_B, self.real_B) * lambda_perceptual
-            )
+        # ET1: VGG perceptual cycle loss
+        if self.opt.lambda_perceptual > 0.0:
+            self.loss_cycle_A_perceptual = self.criterionPerceptual(self.rec_A, self.real_A) * self.opt.lambda_perceptual
+            self.loss_cycle_B_perceptual = self.criterionPerceptual(self.rec_B, self.real_B) * self.opt.lambda_perceptual
         else:
             self.loss_cycle_A_perceptual = 0
             self.loss_cycle_B_perceptual = 0
