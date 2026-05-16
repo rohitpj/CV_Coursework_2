@@ -1,6 +1,5 @@
 import sys
 import re
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -33,57 +32,12 @@ CONFIGS = [
 ]
 
 
-def save_best_model(name):
+def cleanup_checkpoints(name):
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    log_path = checkpoint_dir / "loss_log.txt"
-    if not log_path.exists():
-        print("  No loss log found, skipping best model save.")
-        return
-
-    # Parse per-iteration losses from loss_log.txt and average per epoch
-    epoch_losses = {}
-    with open(log_path) as f:
-        for line in f:
-            epoch_m = re.search(r'\(epoch: (\d+)', line)
-            if not epoch_m:
-                continue
-            epoch = int(epoch_m.group(1))
-            vals = dict(re.findall(r'(\w+): ([\d.e+-]+)', line))
-            g_loss = (float(vals.get("G_A", 0)) + float(vals.get("G_B", 0))
-                      + float(vals.get("cycle_A", 0)) + float(vals.get("cycle_B", 0)))
-            epoch_losses.setdefault(epoch, []).append(g_loss)
-
-    if not epoch_losses:
-        print("  Could not parse losses, skipping best model save.")
-        return
-
-    avg = {e: sum(v) / len(v) for e, v in epoch_losses.items()}
-
-    saved_epochs = set()
-    for f in checkpoint_dir.glob("*_net_G_A.pth"):
-        m = re.match(r"^(\d+)_net_G_A\.pth$", f.name)
-        if m:
-            saved_epochs.add(int(m.group(1)))
-
-    if not saved_epochs:
-        print("  No epoch checkpoints found, skipping best model save.")
-        return
-
-    best_epoch = min(saved_epochs, key=lambda e: avg.get(e, float("inf")))
-    print(f"  Best epoch: {best_epoch}  (avg G+cycle loss: {avg.get(best_epoch, 0):.4f})")
-
-    for net in ["G_A", "G_B", "D_A", "D_B"]:
-        src = checkpoint_dir / f"{best_epoch}_net_{net}.pth"
-        dst = checkpoint_dir / f"best_net_{net}.pth"
-        if src.exists():
-            shutil.copy2(src, dst)
-
-    # Delete all epoch-numbered checkpoints; keep latest_net_*.pth and best_net_*.pth
     for f in checkpoint_dir.glob("*_net_*.pth"):
         if re.match(r"^\d+_net_", f.name):
             f.unlink()
-
-    print(f"  Saved best_net_*.pth (epoch {best_epoch}), removed epoch checkpoints.")
+    print(f"  Removed epoch checkpoints, kept latest_net_*.pth.")
 
 
 def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
@@ -112,14 +66,14 @@ def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
         "--lambda_B",          "10.0",
         "--lambda_identity",   "0.5",
         "--max_dataset_size",  str(max_dataset_size),
-        "--save_epoch_freq",   "5",
+        "--save_epoch_freq",   "20",
         "--no_html",
     ]
 
     pct = "100%" if max_dataset_size == FULL else ("50%" if max_dataset_size == HALF else "25%")
     print(f"\nTraining: {name}  (data={pct}, epochs={n_epochs}+{n_epochs_decay}, lr={lr})")
     subprocess.run(cmd, cwd=Path(__file__).parent)
-    save_best_model(name)
+    cleanup_checkpoints(name)
 
 
 if __name__ == "__main__":

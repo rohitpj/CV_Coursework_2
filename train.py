@@ -20,6 +20,9 @@ See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-a
 """
 
 import time
+import random
+import numpy as np
+import torch
 from options.train_options import TrainOptions
 from data import create_dataset
 from models import create_model
@@ -29,6 +32,14 @@ from util.util import init_ddp, cleanup_ddp
 
 if __name__ == "__main__":
     opt = TrainOptions().parse()  # get training options
+
+    if opt.seed is not None:
+        random.seed(opt.seed)
+        np.random.seed(opt.seed)
+        torch.manual_seed(opt.seed)
+        torch.cuda.manual_seed_all(opt.seed)
+        print(f"Seeded RNG with seed={opt.seed}")
+
     opt.device = init_ddp()
     dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
     dataset_size = len(dataset)  # get the number of images in the dataset.
