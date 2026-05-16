@@ -4,14 +4,18 @@ from pathlib import Path
 
 DATASET_DIR = "./datasets/apple2orange"
 
-# (name, netG)
+# (name, netG, lr)
 CONFIGS = [
-    ("et2_resnet9", "resnet_9blocks"),
-    ("et2_unet256", "unet_256"),
+    ("et2_resnet9",     "resnet_9blocks", "0.0002"),
+    ("et2_unet256",     "unet_256",       "0.0002"),
+
+    # lr tuning for U-Net -- skip connections change gradient flow so a
+    # different lr may be needed compared to the ResNet baseline
+    ("et2_unet256_lr1", "unet_256",       "0.0001"),
 ]
 
 
-def train(name, netG):
+def train(name, netG, lr):
     cmd = [
         sys.executable, "train.py",
         "--dataroot",        DATASET_DIR,
@@ -25,7 +29,7 @@ def train(name, netG):
         "--norm",            "instance",
         "--no_dropout",
         "--gan_mode",        "lsgan",
-        "--lr",              "0.0002",
+        "--lr",              lr,
         "--beta1",           "0.5",
         "--pool_size",       "50",
         "--n_epochs",        "50",
@@ -40,10 +44,10 @@ def train(name, netG):
         "--no_html",
     ]
 
-    print(f"\nTraining: {name}  (netG={netG})")
+    print(f"\nTraining: {name}  (netG={netG}, lr={lr})")
     subprocess.run(cmd, cwd=Path(__file__).parent)
 
 
 if __name__ == "__main__":
-    for name, netG in CONFIGS:
-        train(name, netG)
+    for name, netG, lr in CONFIGS:
+        train(name, netG, lr)

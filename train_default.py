@@ -7,6 +7,14 @@ from pathlib import Path
 DATASET_URL = "http://efrosgans.eecs.berkeley.edu/cyclegan/datasets/apple2orange.zip"
 DATASET_DIR = "./datasets/apple2orange"
 
+# Hyperparameter tuning: vary learning rate, everything else at paper default
+# (name, lr)
+CONFIGS = [
+    ("task2_lr0001",                  "0.0001"),
+    ("apple2orange_cyclegan_default", "0.0002"),  # paper default
+    ("task2_lr0004",                  "0.0004"),
+]
+
 
 def download_dataset():
     if Path(DATASET_DIR).exists():
@@ -27,13 +35,11 @@ def download_dataset():
     print("Done.")
 
 
-if __name__ == "__main__":
-    download_dataset()
-
+def train(name, lr):
     cmd = [
         sys.executable, "train.py",
         "--dataroot",        DATASET_DIR,
-        "--name",            "apple2orange_cyclegan_default",
+        "--name",            name,
         "--model",           "cycle_gan",
         "--dataset_mode",    "unaligned",
         "--netG",            "resnet_9blocks",
@@ -43,7 +49,7 @@ if __name__ == "__main__":
         "--norm",            "instance",
         "--no_dropout",
         "--gan_mode",        "lsgan",
-        "--lr",              "0.0002",
+        "--lr",              lr,
         "--beta1",           "0.5",
         "--pool_size",       "50",
         "--n_epochs",        "100",
@@ -58,5 +64,11 @@ if __name__ == "__main__":
         "--no_html",
     ]
 
-    print("Starting training...")
+    print(f"\nTraining: {name}  (lr={lr})")
     subprocess.run(cmd)
+
+
+if __name__ == "__main__":
+    download_dataset()
+    for name, lr in CONFIGS:
+        train(name, lr)

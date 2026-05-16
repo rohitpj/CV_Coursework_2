@@ -82,3 +82,8 @@ typing_extensions==4.15.0
 wcwidth==0.6.0
 wheel==0.46.3
 widgetsnbextension==4.0.15
+dominate
+requests
+wandb
+torchmetrics
+torch-fidelity
