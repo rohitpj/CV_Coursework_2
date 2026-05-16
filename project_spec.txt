@@ -1,0 +1,217 @@
+
+2 Submission details
+This coursework is worth 50 points from the overall mark of 100 for this unit. Marks are
+specified for each task later in Table 1. A report will be your main method of assessment.
+Your code will be tested based on the output and performance of your implemented solutions,
+and cross-checked with your report.
+Note that this is an individual coursework. You need to submit the project report along
+with the code, which should include an appropriate README file. Models along with the
+training logs and datasets are also required to be submitted with a shareable link. It is your
+responsibility to check that you correctly submit your work. Once you have submitted to
+Moodle and Online Drive (e.g. OneDrive), you should download your submission and verify
+it.
+The submission deadline is 17th May, 2026, 8 pm. Your submission should be uploaded to
+Moodle and should consist of the report PDF and the code. Models, training logs and the
+datasets should be shared as a zip file with a shareable link where we can download all the
+required files. Note that any files that are uploaded or edited after the deadline will NOT be
+assessed.
+Reports longer than 10,000 words will not be read. High-quality reports are typically much
+shorter and more concise. After the main part, please attach the references and appen-
+dices, if any (these are excluded from the word count). The submitted code must be well
+commented (indicating major steps). You should ensure that it is possible for us to run your
+code and replicate your results. This implies that the code is self-contained without any
+absolute image paths, and that any README files with environment setup, if required, are
+provided.
+Your report should demonstrate and evaluate your results. It must include figures of ap-
+propriate resolutions. Evaluation can be qualitative (how it looks) and, wherever possible,
+quantitative (tested numerically). You should also concisely explain your approach to solve
+each task, the choices you make (e.g. hyperparameters, etc). The marks will be decided
+based on the marking guideline specification that we will follow for this unit.
+Late submissions
+The university policy will be followed for late submissions. If a piece of work is submitted
+after the submission date, the maximum possible mark will be 40% of the full mark. If the
+work is submitted more than five working days after the submission date, the student will re-
+ceive zero marks. Requests for extensions should be made to the Director of Studies.
+Lecturers and tutors cannot approve extensions. Please make sure you are familiar with the
+department’s coursework deadline extension policy.
+3 Tasks
+3.1 Task Overview
+In this coursework, you will only need to choose ONE of the following two tracks:
+2
+• TRACK A: Pix2Pix (Paired image-to-image Translation). Example: edges → photos,
+semantic labels → street scenes, sketches → images.
+• TRACK B: CycleGAN (Unpaired image-to-image Translation). Example: horses ↔
+zebras, summer ↔ winter scenes, paintings ↔ photos.
+Please confirm the track you choose at the very beginning of your report. You can choose
+your preferred track, and there will be no difference when we assess your work. For each
+track, you are expected to (details are provided later):
+• Study the related concepts, GAN, Pix2Pix, CycleGAN.
+• Study the chosen model and its loss functions.
+• Train the model on datasets with different setups.
+• Gain a deep understanding of the metrics and evaluate the results.
+• Extend and analyse the method with different experiments.
+3.2 GAN-related Theory
+You are expected to understand the theory behind GAN, Pix2Pix, and CycleGAN. Your report
+must include a section explaining these techniques, no matter which track you choose. This
+could include the mathematical explanation along with the details of their neural network
+architecture design, etc.
+3.3 Implementation Requirements
+You are NOT required to re-implement Pix2Pix or CycleGAN from scratch. In fact, as is
+common practice, you should start from a well-established open-source implementation, In
+this coursework, the official repository must be used as the base implementation for further
+extension and tests. The official repository is available at: https://github.com/junyanz/
+pytorch-CycleGAN-and-Pix2Pix/tree/master.
+Apart from the minimum requirements to run the official code of Pix2Pix or CycleGAN, you
+can only use the following libraries:
+1. PyTorch: torch, torchvision
+2. Computing & Data Processing: numpy, scipy, pandas
+3. Image Processing: opencv-python (cv2), Pillow (PIL), scikit-image
+4. Visualisation & Logging: matplotlib, seaborn, tensorboard, tqdm
+5. Metrics related: scikit-learn, torchmetrics. Other metrics implementations are possible
+only if clearly explained.
+The following are strictly NOT allowed:
+6. Other Generative Model Frameworks: You must not replace the GANs models in this
+CW with alternative generative models such as diffusion-model-related libraries, pre-
+trained image-to-image tools, etc.
+7. High-Level AutoML Training Tools: This includes AutoML frameworks and automated
+hyperparameter search platforms such as auto-sklearn, etc.
+3
+8. Pretrained Image Translation APIs or Services: External inference services such as
+HuggingFace hosted pipelines for image translation.
+
+3.4 Datasets
+You can choose one of the datasets provided in the official code.
+• TRACK A: Pix2Pix: cityscapes, night2day, edges2handbags, edges2shoes, facades,
+maps
+• TRACK B: CycleGAN: apple2orange, summer2winter yosemite, horse2zebra,
+monet2photo, cezanne2photo, ukiyoe2photo, vangogh2photo, maps, cityscapes,
+facades, iphone2dslr flower, ae photos
+Alternatively, you can choose your own datasets. Note that your chosen dataset should have
+at least 400 images in the training set. You are encouraged to use a larger dataset for later
+extension tasks.
+3.5 Extension Tasks
+As aforementioned, in this coursework, we are trying to tackle practical problems that you
+may face in “real-world” scenarios. The following extension tasks (ET) are commonly consid-
+ered as alternative changes you can make from the given repository for the original methods.
+Some ETs may be related to the data conditions you will face. Note that you are not expected
+to obtain “better” performance compared to the original setup. You are required to provide a
+detailed analysis of these extensions.
+3.5.1 ET1: Loss Function Engineering
+The provided loss functions in the official repository may work very well on the tested
+datasets. In real-world scenarios, however, it is very often not the case. Also, new loss
+functions are often introduced after the tested methods are published. In this first extension
+task (ET1), you are required to apply at least one novel loss function to the current frame-
+work. You can choose to add the new loss function or replace part/all of the original loss
+function.
+For any loss function, you are required to present the motivation for using it, along with the
+theory behind this loss function. You can use the existing loss function implementation, but
+you may need to make some changes when applied to your framework.
+Try to analyse: With different loss setups and combinations, what results can we obtain?
+What hyperparameters can we adjust?
+3.5.2 ET2: Architecture Design Choices
+In this extension task, you are expected to make some changes to the network architecture.
+Similar to ET1, you need to provide a motivation for this change. You can use the existing
+implementation and merge it into the current code.
+4
+Try to analyse: With different network architectures, what results can we obtain? What
+hyperparameters can we adjust?
+3.5.3 ET3: Evaluation Metrics
+In practice, different metrics may be used for different purposes. For example, in this course-
+work, some may say, “My GAN looks good with well-generated images.” However, a qualita-
+tive result may not be sufficient, and we need some robust quantitative evaluation pipelines.
+In this ET3, you are required to implement at least one additional quantitative evaluation
+metric beyond those provided in the official repository to evaluate the generated images with
+different setups.
+Try to analyse: With different setups and a new metric, do we get consistent evaluation
+results? Do we have the setup where the generated images look better, but the quantitative
+result is worse? Why does this happen?
+3.5.4 ET4: Limited Data Conditions
+In practice, we often do not have enough training data. In this ET, you are expected to reduce
+the training data in your datasets and test the robustness of the framework. Please test your
+framework with the conditions that only 50% and 25% of the training sets are available.
+Try to analyse: With a shortage of training data, do we still get consistent evaluation results?
+If not, how can we improve it?
+3.5.5 ET5: Tests based on the mixture of previous ETs
+As you have noticed, the previously introduced ETs are design choices where we can test
+the framework from different perspectives. In this ET, you are expected to have two “setups”
+that combine previous ETs and do further analysis with quantitative and qualitative results.
+For example, when we only have 25% of the training data (ET4), are we still keeping the
+same backbone (ET2)? When we change the backbone(ET2), can we get consistent results
+using the same evaluation metrics (ET3)?
+You are expected to explain these “setups” clearly with details, including the experiments
+you conducted, hyperparameter tuning, etc.
+3.6 Computing choices
+In this project, you are suggested to use a machine with GPUs. Here are three recom-
+mended ways:
+• Use your own laptop/desktop: The tasks in this coursework do not require large GPU
+resources. Hence, it should be possible to use your own machine to do all the tasks if
+you have a dedicated GPU (a CPU-only machine will not be enough though).
+• Online resources: Online resources such as Google Colab can also be considered.
+However, if you are using a free version, you may expect some usage limitations.
+• Department of Computer Science Server: You can also use the department GPU clus-
+ter Hex cloud (https://hex.cs.bath.ac.uk). Before you use Hex, please read the wiki
+(help) pages very carefully and follow the rules when using it. For example, although
+we have multiple servers on Hex, you can only use some of them based on access
+rights.
+5
+When you submit your code, please mention all the details about the machine you used,
+e.g. Operating System, GPU version, etc. This will help us replicate and cross-check your
+results. Note that you cannot use “shortage of computing resources” as a reason to ask for
+a deadline extension.
+4 Criteria for Marking
+Task Mandatory? Max mark
+10. Study and explain the related concepts, GAN, Pix2Pix, CycleGAN Y 10
+11. Train the model on the dataset with default setup and obtain initial results Y 10
+12. ET1: Loss Function Engineering Y 17
+13. ET2: Architecture Design Choices Y 16
+14. ET3: Evaluation Metrics Y 17
+15. ET4: Limited Data Conditions N 15
+16. ET5: Tests based on the mixture of previous ETs N 15
+Max mark with only mandatory tasks 70
+Max mark with mandatory tasks and at least one optional task 85
+Max mark with all tasks 100
+Table 1: Maximum mark for each task.
+The maximum mark per task is detailed in Table 1. There is no penalty for not implementing
+a mandatory task - you will simply get 0 on the tasks that you skip. The marking criteria are
+explained in Table 2. Note that the report is the most important part of your assessment. We
+will run your code and check your output.
+Please bear in mind that we care more about the explanation of what you have done and the
+interpretation of the results, not the numbers/results themselves. Below you can find further
+details about what we expect to see in a good report for each task:
+• Task 1. The related concepts should be well-explained, incorporating the relevant
+theory and technical details. You are encouraged to use figures and equations to help
+illustrate the concepts.
+• Task 2. Simply explain how you run the code and show the results with the default
+setup.
+Criterion Description
+Explanation of approach The method is explained well, and it clearly details how the
+various steps are carried out.
+Analysis of performance The performance is analysed and evaluated well with both
+quantitative and qualitative evaluation.
+Analysis of parameters The sensitivity of the task with respect to relevant parameters
+associated with the algorithm are analysed.
+Code output The code runs without errors: can run the training process,
+testing the given models and replicate the results.
+Table 2: Marking criteria.
+6
+• Tasks 3-5 (ET1-ET3). What loss function and optimiser did you use? What architec-
+ture/metric did you try? If you tried more than one, did they differ in performance?
+What is the motivation for using these losses/architecture/metric? What are the pros
+and cons of the original setups? How did hyperparameters affect your results? Analyse
+common GAN training issues (mode collapse, instability), etc.
+• Task 6 (E4). How do you split the datasets? What is the difference compared to the
+training with the full dataset? Does it get the “best” result faster? How did hyper-
+parameters affect your results? How can you improve the results with limited data?
+What efforts have you made? Analyse common GAN training issues (mode collapse,
+instability), etc.
+• Task 7 (E5). What design choices did you make for this extension task, and why?
+When combining these “pre-conditions” in ETs, what findings do you obtain? Do you
+need a new set of hyperparameters?, etc.
+Expected report structure:
+17. Introduction
+18. Theoretical background
+19. Experimental setup/details (hardware info, datasets, training details)
+20. Original results
+21. Extension tasks with additional results
+22. Discussion/Findings
+23. Conclusion
