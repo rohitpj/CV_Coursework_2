@@ -8,8 +8,7 @@ DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
 CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "et4_results.csv")
 
-SEED        = 42
-KEEP_EPOCHS = {20, 40, 60, 80, 100}
+SEED = 42
 
 FULL    = 10000
 HALF    = 497
@@ -23,16 +22,6 @@ CONFIGS = [
     ("et4_50pct_more_epochs", HALF,    100, 100, "0.0002"),
     ("et4_25pct_more_epochs", QUARTER, 100, 100, "0.0002"),
 ]
-
-
-def cleanup_checkpoints(name):
-    checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    if not checkpoint_dir.exists():
-        return
-    for f in checkpoint_dir.glob("*_net_*.pth"):
-        epoch_str = f.name.split("_")[0]
-        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
-            f.unlink()
 
 
 def evaluate(name):
@@ -67,14 +56,13 @@ def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
         "--lambda_B",          "10.0",
         "--lambda_identity",   "0.5",
         "--max_dataset_size",  str(max_dataset_size),
-        "--save_epoch_freq",   "5",
+        "--save_epoch_freq",   "20",
         "--seed",              str(SEED),
         "--no_html",
     ]
 
     print(f"\nTraining: {name} | max_dataset_size={max_dataset_size}, epochs={n_epochs}+{n_epochs_decay}")
     run_training(args)
-    cleanup_checkpoints(name)
     evaluate(name)
 
 

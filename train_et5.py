@@ -9,8 +9,7 @@ DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
 CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "et5_results.csv")
 
-SEED        = 42
-KEEP_EPOCHS = {20, 40, 60, 80, 100}
+SEED = 42
 
 FULL    = 10000
 QUARTER = 248
@@ -38,16 +37,6 @@ SETUP2_REEVAL = [
     ("et2_resnet9",  "resnet_9blocks", 64),
     ("et2_unet256",  "unet_256",       64),
 ]
-
-
-def cleanup_checkpoints(name):
-    checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    if not checkpoint_dir.exists():
-        return
-    for f in checkpoint_dir.glob("*_net_*.pth"):
-        epoch_str = f.name.split("_")[0]
-        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
-            f.unlink()
 
 
 def evaluate(name, netG, ngf):
@@ -88,7 +77,7 @@ def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_da
         "--lambda_perceptual", str(lambda_perceptual),
         "--perceptual_layers", perceptual_layers,
         "--max_dataset_size",  str(max_dataset_size),
-        "--save_epoch_freq",   "5",
+        "--save_epoch_freq",   "20",
         "--seed",              str(SEED),
         "--no_html",
     ]
@@ -97,7 +86,6 @@ def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_da
 
     print(f"\nSetup 1 — {name} | lambda_p={lambda_perceptual}, layers={perceptual_layers}, max_data={max_dataset_size}")
     run_training(args)
-    cleanup_checkpoints(name)
     evaluate(name, "resnet_9blocks", 64)
 
 
@@ -133,7 +121,6 @@ def train_setup2(name, netG, ngf, max_dataset_size):
 
     print(f"\nSetup 2 — {name} | netG={netG}, ngf={ngf}, max_data={max_dataset_size}")
     run_training(args)
-    cleanup_checkpoints(name)
     evaluate(name, netG, ngf)
 
 

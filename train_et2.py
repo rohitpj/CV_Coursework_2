@@ -12,7 +12,6 @@ RESULTS_CSV     = str(_REPO / "evaluation" / "et2_results.csv")
 TIMING_CSV      = str(_REPO / "evaluation" / "et2_timing.csv")
 
 SEED = 42
-KEEP_EPOCHS = {20, 40, 60, 80, 100}
 
 # (name, netG, ngf, netD, n_layers_D, lr)
 CONFIGS = [
@@ -26,16 +25,6 @@ CONFIGS = [
     ("et2_resnet9_lr1",  "resnet_9blocks", 64,  "basic",    3, "0.0001"),
     ("et2_unet256_lr1",  "unet_256",       64,  "basic",    3, "0.0001"),
 ]
-
-
-def cleanup_checkpoints(name):
-    checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    if not checkpoint_dir.exists():
-        return
-    for f in checkpoint_dir.glob("*_net_*.pth"):
-        epoch_str = f.name.split("_")[0]
-        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
-            f.unlink()
 
 
 def log_timing(name, netG, ngf, netD, n_layers_D, lr, elapsed_sec):
@@ -82,7 +71,7 @@ def train(name, netG, ngf, netD, n_layers_D, lr):
         "--lambda_A",        "10.0",
         "--lambda_B",        "10.0",
         "--lambda_identity", "0.5",
-        "--save_epoch_freq", "5",
+        "--save_epoch_freq", "20",
         "--seed",            str(SEED),
         "--no_html",
     ]
@@ -92,7 +81,6 @@ def train(name, netG, ngf, netD, n_layers_D, lr):
     run_training(args)
     elapsed = time.time() - t0
 
-    cleanup_checkpoints(name)
     log_timing(name, netG, ngf, netD, n_layers_D, lr, elapsed)
     evaluate(name, netG, ngf)
 

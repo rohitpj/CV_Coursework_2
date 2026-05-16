@@ -9,7 +9,6 @@ CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "et1_results.csv")
 
 SEED = 42
-KEEP_EPOCHS = {20, 40, 60, 80, 100}
 
 # (name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr)
 CONFIGS = [
@@ -21,16 +20,6 @@ CONFIGS = [
     ("et1_deep",           1.0,  "deep",    False, "0.0002"),
     ("et1_replace_lam10", 10.0,  "all",     True,  "0.0002"),
 ]
-
-
-def cleanup_checkpoints(name):
-    checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    if not checkpoint_dir.exists():
-        return
-    for f in checkpoint_dir.glob("*_net_*.pth"):
-        epoch_str = f.name.split("_")[0]
-        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
-            f.unlink()
 
 
 def evaluate(name):
@@ -66,7 +55,7 @@ def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
         "--lambda_identity",   "0.5",
         "--lambda_perceptual", str(lambda_perceptual),
         "--perceptual_layers", perceptual_layers,
-        "--save_epoch_freq",   "5",
+        "--save_epoch_freq",   "20",
         "--seed",              str(SEED),
         "--no_html",
     ]
@@ -75,7 +64,6 @@ def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
 
     print(f"\nTraining: {name} | lambda_p={lambda_perceptual}, layers={perceptual_layers}, replace_l1={no_cycle_l1}")
     run_training(args)
-    cleanup_checkpoints(name)
     evaluate(name)
 
 

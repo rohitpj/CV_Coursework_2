@@ -12,7 +12,6 @@ CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "task2_results.csv")
 
 SEED           = 42
-KEEP_EPOCHS    = {20, 40, 60, 80, 100}
 N_EPOCHS       = 50
 N_EPOCHS_DECAY = 50
 
@@ -56,16 +55,6 @@ def download_dataset():
     print("Dataset ready.")
 
 
-def cleanup_checkpoints(name):
-    checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    if not checkpoint_dir.exists():
-        return
-    for f in checkpoint_dir.glob("*_net_*.pth"):
-        epoch_str = f.name.split("_")[0]
-        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
-            f.unlink()
-
-
 def evaluate(name):
     try:
         run_evaluation(name, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
@@ -97,14 +86,13 @@ def train(name, lr):
         "--lambda_A",        "10.0",
         "--lambda_B",        "10.0",
         "--lambda_identity", "0.5",
-        "--save_epoch_freq", "5",
+        "--save_epoch_freq", "20",
         "--seed",            str(SEED),
         "--no_html",
     ]
 
     print(f"\nTraining: {name} | lr={lr}, epochs={N_EPOCHS}+{N_EPOCHS_DECAY}")
     run_training(args)
-    cleanup_checkpoints(name)
     evaluate(name)
 
 
