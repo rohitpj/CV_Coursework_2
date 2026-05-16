@@ -31,12 +31,15 @@ Seed is fixed at 42 across all runs (matching ET1/ET2/ET4).
 import sys
 import re
 import csv
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
-DATASET_DIR    = "./datasets/apple2orange"
-CHECKPOINTS_DIR = "./checkpoints"
-RESULTS_CSV    = "./evaluation/et5_results.csv"
+from train import train
+
+_REPO = Path(__file__).resolve().parent
+DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
+CHECKPOINTS_DIR = str(_REPO / "checkpoints")
+RESULTS_CSV     = str(_REPO / "evaluation" / "et5_results.csv")
 
 SEED        = 42
 KEEP_EPOCHS = {20, 40, 60, 80, 100}
@@ -121,8 +124,7 @@ def evaluate(name, netG, ngf):
 def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_dataset_size):
     """Train a Setup 1 cell: perceptual-loss variant at reduced data."""
     pct = "25%" if max_dataset_size == QUARTER else "100%"
-    cmd = [
-        sys.executable, "train.py",
+    args = [
         "--dataroot",          DATASET_DIR,
         "--name",              name,
         "--model",             "cycle_gan",
@@ -153,7 +155,7 @@ def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_da
         "--no_html",
     ]
     if no_cycle_l1:
-        cmd.append("--no_cycle_l1")
+        args.append("--no_cycle_l1")
 
     print(
         f"\n{'='*70}\n"
@@ -162,7 +164,7 @@ def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_da
         f"replace_l1={no_cycle_l1}, seed={SEED}\n"
         f"{'='*70}"
     )
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    train(args)
     cleanup_checkpoints(name)
     evaluate(name, "resnet_9blocks", 64)
 
@@ -170,8 +172,7 @@ def train_setup1(name, lambda_perceptual, perceptual_layers, no_cycle_l1, max_da
 def train_setup2(name, netG, ngf, max_dataset_size):
     """Train a Setup 2 cell: backbone variant at reduced data."""
     pct = "25%" if max_dataset_size == QUARTER else "100%"
-    cmd = [
-        sys.executable, "train.py",
+    args = [
         "--dataroot",        DATASET_DIR,
         "--name",            name,
         "--model",           "cycle_gan",
@@ -206,7 +207,7 @@ def train_setup2(name, netG, ngf, max_dataset_size):
         f"  data={pct}, netG={netG}, ngf={ngf}, seed={SEED}\n"
         f"{'='*70}"
     )
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    train(args)
     cleanup_checkpoints(name)
     evaluate(name, netG, ngf)
 

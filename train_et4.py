@@ -3,9 +3,12 @@ import re
 import subprocess
 from pathlib import Path
 
-DATASET_DIR     = "./datasets/apple2orange"
-CHECKPOINTS_DIR = "./checkpoints"
-RESULTS_CSV     = "./evaluation/et4_results.csv"
+from train import train
+
+_REPO = Path(__file__).resolve().parent
+DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
+CHECKPOINTS_DIR = str(_REPO / "checkpoints")
+RESULTS_CSV     = str(_REPO / "evaluation" / "et4_results.csv")
 
 SEED        = 42
 KEEP_EPOCHS = {20, 40, 60, 80, 100}
@@ -70,8 +73,7 @@ def evaluate(name):
 
 def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
     pct = {FULL: "100%", HALF: "50%", QUARTER: "25%"}.get(max_dataset_size, str(max_dataset_size))
-    cmd = [
-        sys.executable, "train.py",
+    args = [
         "--dataroot",          DATASET_DIR,
         "--name",              name,
         "--model",             "cycle_gan",
@@ -106,7 +108,7 @@ def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
         f"  data={pct}, epochs={n_epochs}+{n_epochs_decay}, lr={lr}, seed={SEED}\n"
         f"{'='*70}"
     )
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    train(args)
     cleanup_checkpoints(name)
     evaluate(name)
 

@@ -5,10 +5,13 @@ import time
 import subprocess
 from pathlib import Path
 
-DATASET_DIR = "./datasets/apple2orange"
-CHECKPOINTS_DIR = "./checkpoints"
-RESULTS_CSV = "./evaluation/et2_results.csv"
-TIMING_CSV  = "./evaluation/et2_timing.csv"
+from train import train
+
+_REPO = Path(__file__).resolve().parent
+DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
+CHECKPOINTS_DIR = str(_REPO / "checkpoints")
+RESULTS_CSV     = str(_REPO / "evaluation" / "et2_results.csv")
+TIMING_CSV      = str(_REPO / "evaluation" / "et2_timing.csv")
 
 # Same seed as ET1 for consistency across all experiments; report this value.
 SEED = 42
@@ -104,8 +107,7 @@ def evaluate(name, netG, ngf):
 
 
 def train(name, netG, ngf, netD, n_layers_D, lr):
-    cmd = [
-        sys.executable, "train.py",
+    args = [
         "--dataroot",        DATASET_DIR,
         "--name",            name,
         "--model",           "cycle_gan",
@@ -142,7 +144,7 @@ def train(name, netG, ngf, netD, n_layers_D, lr):
         f"{'='*70}"
     )
     t0 = time.time()
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    train(args)
     elapsed = time.time() - t0
 
     cleanup_checkpoints(name)

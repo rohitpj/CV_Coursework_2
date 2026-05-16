@@ -30,8 +30,8 @@ from util.visualizer import Visualizer
 from util.util import init_ddp, cleanup_ddp
 
 
-if __name__ == "__main__":
-    opt = TrainOptions().parse()  # get training options
+def train(args=None):
+    opt = TrainOptions().parse(args)
 
     if opt.seed is not None:
         random.seed(opt.seed)
@@ -41,54 +41,53 @@ if __name__ == "__main__":
         print(f"Seeded RNG with seed={opt.seed}")
 
     opt.device = init_ddp()
-    dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
-    dataset_size = len(dataset)  # get the number of images in the dataset.
+    dataset = create_dataset(opt)
+    dataset_size = len(dataset)
     print(f"The number of training images = {dataset_size}")
 
-    model = create_model(opt)  # create a model given opt.model and other options
-    model.setup(opt)  # regular setup: load and print networks; create schedulers
-    visualizer = Visualizer(opt)  # create a visualizer that display/save images and plots
-    total_iters = 0  # the total number of training iterations
+    model = create_model(opt)
+    model.setup(opt)
+    visualizer = Visualizer(opt)
+    total_iters = 0
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
-        epoch_start_time = time.time()  # timer for entire epoch
-        iter_data_time = time.time()  # timer for data loading per iteration
-        epoch_iter = 0  # the number of training iterations in current epoch, reset to 0 every epoch
+        epoch_start_time = time.time()
+        iter_data_time = time.time()
+        epoch_iter = 0
         visualizer.reset()
-        # Set epoch for DistributedSampler
         if hasattr(dataset, "set_epoch"):
             dataset.set_epoch(epoch)
 
-        for i, data in enumerate(dataset):  # inner loop within one epoch
-            iter_start_time = time.time()  # timer for computation per iteration
+        for i, data in enumerate(dataset):
+            iter_start_time = time.time()
             if total_iters % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
 
             total_iters += opt.batch_size
             epoch_iter += opt.batch_size
-            model.set_input(data)  # unpack data from dataset and apply preprocessing
-            model.optimize_parameters()  # calculate loss functions, get gradients, update network weights
+            model.set_input(data)
+            model.optimize_parameters()
 
-            if total_iters % opt.display_freq == 0:  # display images on visdom and save images to a HTML file
+            if total_iters % opt.display_freq == 0:
                 save_result = total_iters % opt.update_html_freq == 0
                 model.compute_visuals()
                 visualizer.display_current_results(model.get_current_visuals(), epoch, total_iters, save_result)
 
-            if total_iters % opt.print_freq == 0:  # print training losses and save logging information to the disk
+            if total_iters % opt.print_freq == 0:
                 losses = model.get_current_losses()
                 t_comp = (time.time() - iter_start_time) / opt.batch_size
                 visualizer.print_current_losses(epoch, epoch_iter, losses, t_comp, t_data)
                 visualizer.plot_current_losses(total_iters, losses)
 
-            if total_iters % opt.save_latest_freq == 0:  # cache our latest model every <save_latest_freq> iterations
+            if total_iters % opt.save_latest_freq == 0:
                 print(f"saving the latest model (epoch {epoch}, total_iters {total_iters})")
                 save_suffix = f"iter_{total_iters}" if opt.save_by_iter else "latest"
                 model.save_networks(save_suffix)
 
             iter_data_time = time.time()
 
-        model.update_learning_rate()  # update learning rates at the end of every epoch
+        model.update_learning_rate()
 
-        if epoch % opt.save_epoch_freq == 0:  # cache our model every <save_epoch_freq> epochs
+        if epoch % opt.save_epoch_freq == 0:
             print(f"saving the model at the end of epoch {epoch}, iters {total_iters}")
             model.save_networks("latest")
             model.save_networks(epoch)
@@ -96,3 +95,7 @@ if __name__ == "__main__":
         print(f"End of epoch {epoch} / {opt.n_epochs + opt.n_epochs_decay} \t Time Taken: {time.time() - epoch_start_time:.0f} sec")
 
     cleanup_ddp()
+
+
+if __name__ == "__main__":
+    train()

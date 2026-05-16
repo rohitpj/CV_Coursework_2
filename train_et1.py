@@ -3,9 +3,12 @@ import re
 import subprocess
 from pathlib import Path
 
-DATASET_DIR = "./datasets/apple2orange"
-CHECKPOINTS_DIR = "./checkpoints"
-RESULTS_CSV = "./evaluation/et1_results.csv"
+from train import train
+
+_REPO = Path(__file__).resolve().parent
+DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
+CHECKPOINTS_DIR = str(_REPO / "checkpoints")
+RESULTS_CSV     = str(_REPO / "evaluation" / "et1_results.csv")
 
 SEED = 42
 KEEP_EPOCHS = {20, 40, 60, 80, 100}
@@ -60,8 +63,7 @@ def evaluate(name):
 
 
 def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
-    cmd = [
-        sys.executable, "train.py",
+    args = [
         "--dataroot",          DATASET_DIR,
         "--name",              name,
         "--model",             "cycle_gan",
@@ -91,7 +93,7 @@ def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
         "--no_html",
     ]
     if no_cycle_l1:
-        cmd.append("--no_cycle_l1")
+        args.append("--no_cycle_l1")
 
     print(
         f"\n{'='*70}\n"
@@ -100,7 +102,7 @@ def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
         f"replace_l1={no_cycle_l1}, lr={lr}, seed={SEED}\n"
         f"{'='*70}"
     )
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    train(args)
     cleanup_checkpoints(name)
     evaluate(name)
 
