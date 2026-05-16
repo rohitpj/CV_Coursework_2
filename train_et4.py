@@ -1,9 +1,7 @@
-import sys
-import re
-import subprocess
 from pathlib import Path
 
-from train import train
+from train import train as run_training
+from evaluate import run_evaluation
 
 _REPO = Path(__file__).resolve().parent
 DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
@@ -13,27 +11,15 @@ RESULTS_CSV     = str(_REPO / "evaluation" / "et4_results.csv")
 SEED        = 42
 KEEP_EPOCHS = {20, 40, 60, 80, 100}
 
-# apple2orange has ~995 trainA and ~1019 trainB images
-# max_dataset_size limits how many are loaded from each directory
-FULL    = 10000   # larger than the dataset so all images are used
-HALF    = 497     # ~50% of 995
-QUARTER = 248     # ~25% of 995
+FULL    = 10000
+HALF    = 497
+QUARTER = 248
 
 # (name, max_dataset_size, n_epochs, n_epochs_decay, lr)
-#
-# The improvement strategy for limited data is to train for longer.
-# With fewer images per epoch, the model sees fewer gradient updates, so
-# doubling the epochs compensates by giving it the same total number of
-# update steps as the full-data run.
 CONFIGS = [
-    # baseline -- full dataset
     ("et4_full",              FULL,    50,  50,  "0.0002"),
-
-    # reduced data -- same training budget
     ("et4_50pct",             HALF,    50,  50,  "0.0002"),
     ("et4_25pct",             QUARTER, 50,  50,  "0.0002"),
-
-    # reduced data + improvement: train longer to compensate
     ("et4_50pct_more_epochs", HALF,    100, 100, "0.0002"),
     ("et4_25pct_more_epochs", QUARTER, 100, 100, "0.0002"),
 ]
@@ -43,36 +29,20 @@ def cleanup_checkpoints(name):
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
     if not checkpoint_dir.exists():
         return
-    removed = 0
     for f in checkpoint_dir.glob("*_net_*.pth"):
-        m = re.match(r"^(\d+)_net_", f.name)
-        if m and int(m.group(1)) not in KEEP_EPOCHS:
+        epoch_str = f.name.split("_")[0]
+        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
             f.unlink()
-            removed += 1
-    print(f"  Kept epoch checkpoints {sorted(KEEP_EPOCHS)}, removed {removed} intermediate .pth files.")
 
 
 def evaluate(name):
-    cmd = [
-        sys.executable, "evaluate.py",
-        "--name",       name,
-        "--dataroot",   DATASET_DIR,
-        "--netG",       "resnet_9blocks",
-        "--ngf",        "64",
-        "--output_csv", RESULTS_CSV,
-    ]
-    print(f"  Evaluating {name}...")
-    result = subprocess.run(cmd, cwd=Path(__file__).parent, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  WARNING: evaluate.py failed for {name}:\n{result.stderr[-800:]}")
-    else:
-        for line in result.stdout.splitlines():
-            if any(k in line for k in ("FID", "KID", "LPIPS", "SSIM", "Appended", "Results")):
-                print(f"  {line.strip()}")
+    try:
+        run_evaluation(name, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
+    except Exception as e:
+        print(f"WARNING: evaluation failed for {name}: {e}")
 
 
 def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
-    pct = {FULL: "100%", HALF: "50%", QUARTER: "25%"}.get(max_dataset_size, str(max_dataset_size))
     args = [
         "--dataroot",          DATASET_DIR,
         "--name",              name,
@@ -102,13 +72,8 @@ def train(name, max_dataset_size, n_epochs, n_epochs_decay, lr):
         "--no_html",
     ]
 
-    print(
-        f"\n{'='*70}\n"
-        f"Training : {name}\n"
-        f"  data={pct}, epochs={n_epochs}+{n_epochs_decay}, lr={lr}, seed={SEED}\n"
-        f"{'='*70}"
-    )
-    train(args)
+    print(f"\nTraining: {name} | max_dataset_size={max_dataset_size}, epochs={n_epochs}+{n_epochs_decay}")
+    run_training(args)
     cleanup_checkpoints(name)
     evaluate(name)
 

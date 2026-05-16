@@ -1,9 +1,7 @@
-import sys
-import re
-import subprocess
 from pathlib import Path
 
-from train import train
+from train import train as run_training
+from evaluate import run_evaluation
 
 _REPO = Path(__file__).resolve().parent
 DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
@@ -15,51 +13,31 @@ KEEP_EPOCHS = {20, 40, 60, 80, 100}
 
 # (name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr)
 CONFIGS = [
-    ("et1_baseline",        0.0,  "all",     False, "0.0002"),
-
-    # ── Lambda ablation ──────────────────────────────────────────────────────────
-    ("et1_lam0p1",          0.1,  "all",     False, "0.0002"),
-    ("et1_lam1",            1.0,  "all",     False, "0.0002"),
-    ("et1_lam10",          10.0,  "all",     False, "0.0002"),  
-    # ── Layer ablation ───────────────────────────────────────────────────────────
-    ("et1_shallow",         1.0,  "shallow", False, "0.0002"),
-    ("et1_deep",            1.0,  "deep",    False, "0.0002"),
-    ("et1_replace_lam10",  10.0,  "all",     True,  "0.0002"),
-
+    ("et1_baseline",       0.0,  "all",     False, "0.0002"),
+    ("et1_lam0p1",         0.1,  "all",     False, "0.0002"),
+    ("et1_lam1",           1.0,  "all",     False, "0.0002"),
+    ("et1_lam10",         10.0,  "all",     False, "0.0002"),
+    ("et1_shallow",        1.0,  "shallow", False, "0.0002"),
+    ("et1_deep",           1.0,  "deep",    False, "0.0002"),
+    ("et1_replace_lam10", 10.0,  "all",     True,  "0.0002"),
 ]
 
 
 def cleanup_checkpoints(name):
-
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
-    removed = 0
+    if not checkpoint_dir.exists():
+        return
     for f in checkpoint_dir.glob("*_net_*.pth"):
-        m = re.match(r"^(\d+)_net_", f.name)
-        if m and int(m.group(1)) not in KEEP_EPOCHS:
+        epoch_str = f.name.split("_")[0]
+        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
             f.unlink()
-            removed += 1
-    print(f"  Kept epoch checkpoints {sorted(KEEP_EPOCHS)}, removed {removed} intermediate .pth files.")
 
 
 def evaluate(name):
-    """Run evaluate.py on the finished checkpoint and append a row to the shared CSV."""
-    cmd = [
-        sys.executable, "evaluate.py",
-        "--name",       name,
-        "--dataroot",   DATASET_DIR,
-        "--netG",       "resnet_9blocks",
-        "--ngf",        "64",
-        "--output_csv", RESULTS_CSV,
-    ]
-    print(f"  Evaluating {name}...")
-    result = subprocess.run(cmd, cwd=Path(__file__).parent, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  WARNING: evaluate.py failed for {name}:\n{result.stderr[-800:]}")
-    else:
-        # Print just the metrics lines (skip verbose model-load output)
-        for line in result.stdout.splitlines():
-            if any(k in line for k in ("FID", "KID", "LPIPS", "SSIM", "Appended", "Results")):
-                print(f"  {line.strip()}")
+    try:
+        run_evaluation(name, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
+    except Exception as e:
+        print(f"WARNING: evaluation failed for {name}: {e}")
 
 
 def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
@@ -95,14 +73,8 @@ def train(name, lambda_perceptual, perceptual_layers, no_cycle_l1, lr):
     if no_cycle_l1:
         args.append("--no_cycle_l1")
 
-    print(
-        f"\n{'='*70}\n"
-        f"Training : {name}\n"
-        f"  lambda_p={lambda_perceptual}, layers={perceptual_layers}, "
-        f"replace_l1={no_cycle_l1}, lr={lr}, seed={SEED}\n"
-        f"{'='*70}"
-    )
-    train(args)
+    print(f"\nTraining: {name} | lambda_p={lambda_perceptual}, layers={perceptual_layers}, replace_l1={no_cycle_l1}")
+    run_training(args)
     cleanup_checkpoints(name)
     evaluate(name)
 

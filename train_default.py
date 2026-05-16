@@ -1,11 +1,9 @@
-import sys
-import re
 import zipfile
-import subprocess
 import requests
 from pathlib import Path
 
-from train import main as train_main
+from train import train as run_training
+from evaluate import run_evaluation
 
 _REPO = Path(__file__).resolve().parent
 DATASET_URL     = "http://efrosgans.eecs.berkeley.edu/cyclegan/datasets/apple2orange.zip"
@@ -13,24 +11,16 @@ DATASET_DIR     = str(_REPO / "datasets" / "apple2orange")
 CHECKPOINTS_DIR = str(_REPO / "checkpoints")
 RESULTS_CSV     = str(_REPO / "evaluation" / "task2_results.csv")
 
-SEED        = 42
-KEEP_EPOCHS = {20, 40, 60, 80, 100}
-
-# Epoch budget: 50 + 50 = 100 total.
-# The repo default is 100 + 100 = 200; we reduce it due to compute constraints.
-# This budget is used identically in ET1/ET2/ET4/ET5 so all comparisons are
-# valid against the Task 2 baseline. State this clearly in the report.
+SEED           = 42
+KEEP_EPOCHS    = {20, 40, 60, 80, 100}
 N_EPOCHS       = 50
 N_EPOCHS_DECAY = 50
 
 # (name, lr)
-# task2_default is the Task 2 deliverable — paper default lr, lsgan, resnet_9blocks.
-# The lr variants are supplementary parameter-sensitivity runs; label them as such
-# in the report (they are not the Task 2 baseline itself).
 CONFIGS = [
-    ("task2_lr0001",  "0.0001"),   # lr sensitivity — below default
-    ("task2_default", "0.0002"),   # Task 2 baseline
-    ("task2_lr0004",  "0.0004"),   # lr sensitivity — above default
+    ("task2_lr0001",  "0.0001"),
+    ("task2_default", "0.0002"),
+    ("task2_lr0004",  "0.0004"),
 ]
 
 
@@ -41,15 +31,14 @@ def download_dataset():
 
     zip_path = _REPO / "datasets" / "apple2orange.zip"
     (_REPO / "datasets").mkdir(exist_ok=True)
-    print(f"Downloading apple2orange dataset from {DATASET_URL} ...")
+    print(f"Downloading dataset from {DATASET_URL} ...")
     try:
         r = requests.get(DATASET_URL, stream=True, timeout=60)
         r.raise_for_status()
     except requests.RequestException as e:
         raise RuntimeError(
             f"Download failed: {e}\n"
-            "If the server is unreachable, place the dataset manually at "
-            f"{DATASET_DIR} (trainA/, trainB/, testA/, testB/ subdirs)."
+            f"Place the dataset manually at {DATASET_DIR} (trainA/, trainB/, testA/, testB/)."
         ) from e
 
     with open(zip_path, "wb") as f:
@@ -61,10 +50,7 @@ def download_dataset():
         bad = zf.testzip()
         if bad is not None:
             zip_path.unlink()
-            raise RuntimeError(
-                f"Downloaded zip is corrupt (first bad file: {bad}). "
-                "Delete datasets/ and re-run."
-            )
+            raise RuntimeError(f"Downloaded zip is corrupt (first bad file: {bad}). Delete datasets/ and re-run.")
         zf.extractall(_REPO / "datasets")
     zip_path.unlink()
     print("Dataset ready.")
@@ -74,32 +60,17 @@ def cleanup_checkpoints(name):
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
     if not checkpoint_dir.exists():
         return
-    removed = 0
     for f in checkpoint_dir.glob("*_net_*.pth"):
-        m = re.match(r"^(\d+)_net_", f.name)
-        if m and int(m.group(1)) not in KEEP_EPOCHS:
+        epoch_str = f.name.split("_")[0]
+        if epoch_str.isdigit() and int(epoch_str) not in KEEP_EPOCHS:
             f.unlink()
-            removed += 1
-    print(f"  Kept epoch checkpoints {sorted(KEEP_EPOCHS)}, removed {removed} intermediate .pth files.")
 
 
 def evaluate(name):
-    cmd = [
-        sys.executable, str(_REPO / "evaluate.py"),
-        "--name",       name,
-        "--dataroot",   DATASET_DIR,
-        "--netG",       "resnet_9blocks",
-        "--ngf",        "64",
-        "--output_csv", RESULTS_CSV,
-    ]
-    print(f"  Evaluating {name}...")
-    result = subprocess.run(cmd, cwd=_REPO, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  WARNING: evaluate.py failed for {name}:\n{result.stderr[-800:]}")
-    else:
-        for line in result.stdout.splitlines():
-            if any(k in line for k in ("FID", "KID", "LPIPS", "SSIM", "Appended", "Results")):
-                print(f"  {line.strip()}")
+    try:
+        run_evaluation(name, "latest", "resnet_9blocks", 64, "instance", DATASET_DIR, output_csv=RESULTS_CSV)
+    except Exception as e:
+        print(f"WARNING: evaluation failed for {name}: {e}")
 
 
 def train(name, lr):
@@ -131,13 +102,8 @@ def train(name, lr):
         "--no_html",
     ]
 
-    print(
-        f"\n{'='*70}\n"
-        f"Training : {name}\n"
-        f"  lr={lr}, epochs={N_EPOCHS}+{N_EPOCHS_DECAY}, seed={SEED}\n"
-        f"{'='*70}"
-    )
-    train_main(args)
+    print(f"\nTraining: {name} | lr={lr}, epochs={N_EPOCHS}+{N_EPOCHS_DECAY}")
+    run_training(args)
     cleanup_checkpoints(name)
     evaluate(name)
 
